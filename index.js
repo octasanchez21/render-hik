@@ -1,12 +1,14 @@
 import pkg from "@tago-io/sdk";
 import { DigestClient } from "digest-fetch";
+import express from "express";
 
-const { Analysis, Services } = pkg;
+const { Analysis } = pkg;
 
 // Credenciales de autenticación
 const username = "admin";
 const password = "Inteliksa6969";
 
+// Función principal del análisis
 async function index(context) {
   const url =
     "http://34.221.158.219/ISAPI/AccessControl/UserInfo/Search?format=json&devIndex=F5487AA0-2485-4CFB-9304-835DCF118B43";
@@ -24,29 +26,53 @@ async function index(context) {
     }),
   };
 
-  client
-    .fetch(url, options)
-    .then((response) => {
-      if (!response.ok) {
-        throw new Error(`Error en la petición: ${response.status}`);
-      }
-      return response.json();
-    })
-    .then((data) => {
-      console.log("Respuesta completa:", data);
+  try {
+    const response = await client.fetch(url, options);
+    if (!response.ok) {
+      throw new Error(`Error en la petición: ${response.status}`);
+    }
+    const data = await response.json();
+    context.log("Respuesta completa:", data);
 
-      if (data.UserInfoSearch && data.UserInfoSearch.UserInfo) {
-        data.UserInfoSearch.UserInfo.forEach((user) => {
-          console.log("Contenido completo de UserInfo:");
-          console.log(JSON.stringify(user, null, 2));
-        });
-      }
-    })
-    .catch((error) => {
-      console.error("Error:", error.message);
-    });
+    if (data.UserInfoSearch && data.UserInfoSearch.UserInfo) {
+      data.UserInfoSearch.UserInfo.forEach((user) => {
+        context.log("Contenido completo de UserInfo:");
+        context.log(JSON.stringify(user, null, 2));
+      });
+    }
+  } catch (error) {
+    context.log("Error:", error.message);
+    throw error; // Para que TagoIO registre el error si es necesario
+  }
 }
 
-export default new Analysis(index, {
-  token: "a-1cfce699-af67-4351-a927-cb0a87b903fa",
+// Configuración del servidor Express
+const app = express();
+const port = process.env.PORT || 10000; // Puerto definido por Render o el predeterminado
+
+// Ruta principal para verificar el estado
+app.get("/", (req, res) => {
+  res.send("¡El servidor del análisis de TagoIO está activo!");
 });
+
+// Ruta para ejecutar el análisis manualmente
+app.get("/run-analysis", async (req, res) => {
+  const context = {
+    log: console.log,
+  };
+
+  try {
+    await index(context); // Llama al análisis de TagoIO
+    res.send("El análisis de TagoIO se ejecutó correctamente.");
+  } catch (error) {
+    res.status(500).send(`Error al ejecutar el análisis: ${error.message}`);
+  }
+});
+
+// Inicia el servidor
+app.listen(port, () => {
+  console.log(`Servidor escuchando en el puerto ${port}`);
+});
+
+// Exporta el análisis para TagoIO
+export default new Analysis(index,{token:"a-1cfce699-af67-4351-a927-cb0a87b903fa"});
