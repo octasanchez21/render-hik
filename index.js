@@ -2,7 +2,7 @@ import pkg from "@tago-io/sdk";
 import { DigestClient } from "digest-fetch";
 import express from "express";
 
-const { Analysis } = pkg;
+const { Utils, Analysis, Device } = pkg;
 
 // Credenciales de autenticación
 const username = "admin";
@@ -10,6 +10,9 @@ const password = "Inteliksa6969";
 
 // Función principal del análisis
 async function index(context) {
+  const env = Utils.envToJson(context.environment);
+  const device = new Device({ token: env.device_token });
+
   const url =
     "http://34.221.158.219/ISAPI/AccessControl/UserInfo/Search?format=json&devIndex=F5487AA0-2485-4CFB-9304-835DCF118B43";
   const client = new DigestClient(username, password);
@@ -37,7 +40,13 @@ async function index(context) {
     if (data.UserInfoSearch && data.UserInfoSearch.UserInfo) {
       data.UserInfoSearch.UserInfo.forEach((user) => {
         context.log("Contenido completo de UserInfo:");
-        context.log(JSON.stringify(user, null, 2));
+
+        const userInfo = JSON.stringify(user, null, 2);
+        /*  context.log(userInfo); */
+
+        const name = user.name;
+        const data = { variable: "name", value: name };
+        device.sendData(data);
       });
     }
   } catch (error) {
@@ -75,4 +84,6 @@ app.listen(port, () => {
 });
 
 // Exporta el análisis para TagoIO
-export default new Analysis(index,{token:"a-1cfce699-af67-4351-a927-cb0a87b903fa"});
+export default new Analysis(index, {
+  token: "a-e5b12b85-f078-4bb6-8220-89502414f2f9",
+});
